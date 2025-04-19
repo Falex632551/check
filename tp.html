@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>จับเวลาออกกำลังกาย - มินิมอล</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes slideIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-slide-in {
+      animation: slideIn 0.5s ease-out forwards;
+    }
+    .animate-fade-slide {
+      animation: fadeSlide 0.3s ease-out forwards;
+    }
+    .progress-ring__circle {
+      transition: stroke-dashoffset 0.35s;
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+    }
+    .overlay {
+      transition: opacity 0.3s ease;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800 min-h-screen">
+  <div class="container mx-auto p-6 max-w-4xl">
+    <h1 class="text-3xl font-bold text-center mb-8 animate-slide-in text-blue-600">จับเวลาออกกำลังกาย</h1>
+
+    <!--ส่วนเพิ่มท่าออกกำลังกาย-->
+    <div class="bg-white p-6 rounded-lg shadow-sm mb-8 animate-slide-in" style="animation-delay: 0.2s;">
+      <h2 class="text-xl font-semibold mb-4 text-gray-700">เพิ่มท่าออกกำลังกาย</h2>
+      <div class="flex flex-col sm:flex-row gap-4">
+        <input id="exerciseName" type="text" placeholder="ชื่อท่า (เช่น Push-up)" class="p-3 border border-gray-300 rounded-lg flex-1 bg-white text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 transition">
+        <input id="exerciseTime" type="number" placeholder="เวลา (วินาที)" class="p-3 border border-gray-300 rounded-lg w-32 bg-white text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 transition">
+        <button onclick="addExercise()" class="bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition">เพิ่มท่า</button>
+      </div>
+      <div id="exerciseList" class="mt-4 grid gap-3"></div>
+    </div>
+
+    <!-- ตั้งค่าการพักและจำนวนรอบ -->
+    <div class="bg-white p-6 rounded-lg shadow-sm mb-8 animate-slide-in" style="animation-delay: 0.4s;">
+      <h2 class="text-xl font-semibold mb-4 text-gray-700">ตั้งค่าการพักและรอบ</h2>
+      <div class="flex flex-col sm:flex-row gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-600">จำนวนรอบ</label>
+          <input id="rounds" type="number" value="1" min="1" class="p-3 border border-gray-300 rounded-lg w-32 bg-white text-gray-800 focus:ring-2 focus:ring-blue-500 transition" oninput="saveToLocalStorage()">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600">พักระหว่างรอบ (วินาที)</label>
+          <input id="restTime" type="number" value="30" class="p-3 border border-gray-300 rounded-lg w-32 bg-white text-gray-800 focus:ring-2 focus:ring-blue-500 transition" oninput="saveToLocalStorage()">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600">พักรอบใหญ่ (วินาที)</label>
+          <input id="bigRestTime" type="number" value="120" class="p-3 border border-gray-300 rounded-lg w-32 bg-white text-gray-800 focus:ring-2 focus:ring-blue-500 transition" oninput="saveToLocalStorage()">
+        </div>
+      </div>
+    </div>
+
+    <!-- ส่วนจับเวลา -->
+    <div class="bg-white p-8 rounded-lg shadow-sm animate-slide-in" style="animation-delay: 0.6s;">
+      <h2 class="text-xl font-semibold mb-6 text-center text-gray-700">จับเวลา</h2>
+      <div class="flex justify-center mb-6">
+        <div class="relative w-56 h-56">
+          <svg class="w-full h-full" viewBox="0 0 100 100">
+            <circle class="progress-ring__background" cx="50" cy="50" r="45" fill="none" stroke="#e5e7eb" stroke-width="10"/>
+            <circle id="progressRing" class="progress-ring__circle" cx="50" cy="50" r="45" fill="none" stroke="#2563eb" stroke-width="10" stroke-dasharray="283" stroke-dashoffset="283"/>
+          </svg>
+          <div id="timerDisplay" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-4xl font-mono text-gray-800">00:00</div>
+        </div>
+      </div>
+      <div id="currentExercise" class="text-lg text-center mb-6 font-medium text-gray-700"></div>
+      <div class="flex justify-center gap-4">
+        <button id="startBtn" onclick="startTimer()" class="bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition transform hover:scale-105">เริ่ม</button>
+        <button id="pauseBtn" onclick="pauseTimer()" class="bg-gray-500 text-white p-3 rounded-lg hover:bg-gray-600 transition transform hover:scale-105 hidden">หยุดชั่วคราว</button>
+        <button id="resetBtn" onclick="resetTimer()" class="bg-red-500 text-white p-3 rounded-lg hover:bg-red-600 transition transform hover:scale-105">รีเซ็ต</button>
+      </div>
+    </div>
+
+    <!-- หน้าต่างซ้อนทับ -->
+    <div id="timerOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center hidden overlay">
+      <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+        <div class="relative w-56 h-56 mx-auto mb-6">
+          <svg class="w-full h-full" viewBox="0 0 100 100">
+            <circle class="progress-ring__background" cx="50" cy="50" r="45" fill="none" stroke="#e5e7eb" stroke-width="10"/>
+            <circle id="overlayProgressRing" class="progress-ring__circle" cx="50" cy="50" r="45" fill="none" stroke="#2563eb" stroke-width="10" stroke-dasharray="283" stroke-dashoffset="283"/>
+          </svg>
+          <div id="overlayTimerDisplay" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-8 text-4xl font-mono text-gray-800">00:00</div>
+          <div id="overlayCurrentExercise" class="absolute top-3/4 left-1/2 transform -translate-x-1/2 text-lg font-medium text-gray-700 text-center w-full animate-fade-slide"></div>
+        </div>
+        <div id="overlayRound" class="text-md text-center mb-6 text-gray-600"></div>
+        <div class="flex justify-center gap-4">
+          <button id="overlayPauseBtn" onclick="pauseTimer()" class="bg-gray-500 text-white p-3 rounded-lg hover:bg-gray-600 transition transform hover:scale-105">หยุดชั่วคราว</button>
+          <button id="overlayResetBtn" onclick="resetTimer()" class="bg-red-500 text-white p-3 rounded-lg hover:bg-red-600 transition transform hover:scale-105">รีเซ็ต</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let exercises = [];
+    let currentExerciseIndex = 0;
+    let currentRound = 1;
+    let totalRounds = 1;
+    let timeLeft = 0;
+    let totalTime = 0;
+    let isRunning = false;
+    let isPaused = false;
+    let isResting = false;
+    let timerInterval;
+
+    // เสียงแจ้งเตือน
+    const alertSound = new Audio('https://www.soundjay.com/buttons/beep-01a.mp3');
+
+    // โหลดข้อมูลจาก LocalStorage
+    function loadFromLocalStorage() {
+      const savedExercises = localStorage.getItem('exercises');
+      const savedRestTime = localStorage.getItem('restTime');
+      const savedBigRestTime = localStorage.getItem('bigRestTime');
+      const savedRounds = localStorage.getItem('rounds');
+
+      if (savedExercises) {
+        exercises = JSON.parse(savedExercises);
+        renderExerciseList();
+      }
+      if (savedRestTime) {
+        document.getElementById('restTime').value = savedRestTime;
+      }
+      if (savedBigRestTime) {
+        document.getElementById('bigRestTime').value = savedBigRestTime;
+      }
+      if (savedRounds) {
+        document.getElementById('rounds').value = savedRounds;
+        totalRounds = parseInt(savedRounds);
+      }
+    }
+
+    // บันทึกข้อมูลลง LocalStorage
+    function saveToLocalStorage() {
+      localStorage.setItem('exercises', JSON.stringify(exercises));
+      localStorage.setItem('restTime', document.getElementById('restTime').value);
+      localStorage.setItem('bigRestTime', document.getElementById('bigRestTime').value);
+      localStorage.setItem('rounds', document.getElementById('rounds').value);
+    }
+
+    // เพิ่มท่าออกกำลังกาย
+    function addExercise() {
+      const name = document.getElementById('exerciseName').value;
+      const time = parseInt(document.getElementById('exerciseTime').value);
+      if (name && time > 0) {
+        exercises.push({ name, time });
+        document.getElementById('exerciseName').value = '';
+        document.getElementById('exerciseTime').value = '';
+        renderExerciseList();
+        saveToLocalStorage();
+      }
+    }
+
+    // แสดงรายการท่าออกกำลังกาย
+    function renderExerciseList() {
+      const list = document.getElementById('exerciseList');
+      list.innerHTML = '';
+      exercises.forEach((ex, index) => {
+        const div = document.createElement('div');
+        div.className = 'flex justify-between items-center p-3 bg-gray-50 rounded-lg transition transform hover:bg-gray-100';
+        div.innerHTML = `
+          <span class="text-gray-700">${ex.name} (${ex.time} วินาที)</span>
+          <button onclick="removeExercise(${index})" class="text-red-500 hover:text-red-600 transition">ลบ</button>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    // ลบท่าออกกำลังกาย
+    function removeExercise(index) {
+      exercises.splice(index, 1);
+      renderExerciseList();
+      saveToLocalStorage();
+    }
+
+    // เริ่มจับเวลา
+    function startTimer() {
+      if (exercises.length === 0) return;
+      if (!isRunning) {
+        isRunning = true;
+        isPaused = false;
+        totalRounds = parseInt(document.getElementById('rounds').value) || 1;
+        document.getElementById('startBtn').classList.add('hidden');
+        document.getElementById('pauseBtn').classList.remove('hidden');
+        document.getElementById('timerOverlay').classList.remove('hidden');
+        timeLeft = exercises[currentExerciseIndex].time;
+        totalTime = timeLeft;
+        updateTimer();
+        timerInterval = setInterval(updateTimer, 1000);
+      }
+    }
+
+    // หยุดชั่วคราว
+    function pauseTimer() {
+      if (isRunning && !isPaused) {
+        isPaused = true;
+        clearInterval(timerInterval);
+        document.getElementById('startBtn').classList.remove('hidden');
+        document.getElementById('pauseBtn').classList.add('hidden');
+        document.getElementById('overlayPauseBtn').textContent = 'ดำเนินการต่อ';
+      } else if (isPaused) {
+        isPaused = false;
+        document.getElementById('startBtn').classList.add('hidden');
+        document.getElementById('pauseBtn').classList.remove('hidden');
+        document.getElementById('overlayPauseBtn').textContent = 'หยุดชั่วคราว';
+        timerInterval = setInterval(updateTimer, 1000);
+      }
+    }
+
+    // รีเซ็ต
+    function resetTimer() {
+      clearInterval(timerInterval);
+      isRunning = false;
+      isPaused = false;
+      currentExerciseIndex = 0;
+      currentRound = 1;
+      timeLeft = 0;
+      isResting = false;
+      document.getElementById('timerDisplay').textContent = '00:00';
+      document.getElementById('overlayTimerDisplay').textContent = '00:00';
+      document.getElementById('currentExercise').textContent = '';
+      document.getElementById('overlayCurrentExercise').textContent = '';
+      document.getElementById('overlayRound').textContent = '';
+      document.getElementById('startBtn').classList.remove('hidden');
+      document.getElementById('pauseBtn').classList.add('hidden');
+      document.getElementById('overlayPauseBtn').textContent = 'หยุดชั่วคราว';
+      document.getElementById('progressRing').setAttribute('stroke-dashoffset', '283');
+      document.getElementById('overlayProgressRing').setAttribute('stroke-dashoffset', '283');
+      document.getElementById('timerOverlay').classList.add('hidden');
+    }
+
+    // อัพเดทจับเวลา
+    function updateTimer() {
+      if (timeLeft <= 0) {
+        alertSound.play();
+        if (isResting) {
+          isResting = false;
+          currentExerciseIndex++;
+          if (currentExerciseIndex >= exercises.length) {
+            currentRound++;
+            if (currentRound > totalRounds) {
+              // รอบใหญ่
+              isResting = true;
+              timeLeft = parseInt(document.getElementById('bigRestTime').value);
+              totalTime = timeLeft;
+              document.getElementById('currentExercise').textContent = 'พักรอบใหญ่';
+              document.getElementById('overlayCurrentExercise').textContent = 'พักรอบใหญ่';
+              document.getElementById('overlayRound').textContent = '';
+              currentExerciseIndex = 0;
+              currentRound = 1; // เริ่มรอบใหม่หลังพักรอบใหญ่
+            } else {
+              // เริ่มรอบใหม่
+              currentExerciseIndex = 0;
+              timeLeft = exercises[currentExerciseIndex].time;
+              totalTime = timeLeft;
+              document.getElementById('currentExercise').textContent = exercises[currentExerciseIndex].name;
+              document.getElementById('overlayCurrentExercise').textContent = exercises[currentExerciseIndex].name;
+              document.getElementById('overlayRound').textContent = `รอบ ${currentRound}/${totalRounds}`;
+              document.getElementById('overlayCurrentExercise').classList.remove('animate-fade-slide');
+              void document.getElementById('overlayCurrentExercise').offsetWidth; // Trigger reflow
+              document.getElementById('overlayCurrentExercise').classList.add('animate-fade-slide');
+            }
+          } else {
+            timeLeft = exercises[currentExerciseIndex].time;
+            totalTime = timeLeft;
+            document.getElementById('currentExercise').textContent = exercises[currentExerciseIndex].name;
+            document.getElementById('overlayCurrentExercise').textContent = exercises[currentExerciseIndex].name;
+            document.getElementById('overlayRound').textContent = `รอบ ${currentRound}/${totalRounds}`;
+            document.getElementById('overlayCurrentExercise').classList.remove('animate-fade-slide');
+            void document.getElementById('overlayCurrentExercise').offsetWidth; // Trigger reflow
+            document.getElementById('overlayCurrentExercise').classList.add('animate-fade-slide');
+          }
+        } else {
+          isResting = true;
+          timeLeft = parseInt(document.getElementById('restTime').value);
+          totalTime = timeLeft;
+          document.getElementById('currentExercise').textContent = 'พัก';
+          document.getElementById('overlayCurrentExercise').textContent = 'พัก';
+          document.getElementById('overlayRound').textContent = `รอบ ${currentRound}/${totalRounds}`;
+          document.getElementById('overlayCurrentExercise').classList.remove('animate-fade-slide');
+          void document.getElementById('overlayCurrentExercise').offsetWidth; // Trigger reflow
+          document.getElementById('overlayCurrentExercise').classList.add('animate-fade-slide');
+        }
+      } else {
+        timeLeft--;
+      }
+
+      const minutes = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+      const seconds = (timeLeft % 60).toString().padStart(2, '0');
+      document.getElementById('timerDisplay').textContent = `${minutes}:${seconds}`;
+      document.getElementById('overlayTimerDisplay').textContent = `${minutes}:${seconds}`;
+
+      // อัพเดทวงแหวนความคืบหน้า
+      const progress = (timeLeft / totalTime) * 283;
+      document.getElementById('progressRing').setAttribute('stroke-dashoffset', progress);
+      document.getElementById('overlayProgressRing').setAttribute('stroke-dashoffset', progress);
+    }
+
+    // โ
+
+หลดข้อมูลเมื่อหน้าเว็บเริ่มทำงาน
+    document.addEventListener('DOMContentLoaded', loadFromLocalStorage);
+  </script>
+</body>
+</html>
